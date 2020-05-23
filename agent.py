@@ -1,38 +1,26 @@
-import numpy as np
-import random
 import copy
-from collections import namedtuple, deque
+import torch
+import random
+import numpy as np
+import torch.optim as optim
+import torch.nn.functional as F
 
+from collections import namedtuple, deque
 from model import Actor, Critic
 
-import torch
-import torch.nn.functional as F
-import torch.optim as optim
-
-BUFFER_SIZE = int(1e6)  # replay buffer size
-BATCH_SIZE = 128        # minibatch size
+BUFFER_SIZE = int(1e4)  # replay buffer size
+BATCH_SIZE = 1024        # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
-LR_ACTOR = 1e-4         # learning rate of the actor
-LR_CRITIC = 1e-4        # learning rate of the critic
-WEIGHT_DECAY = 0.0      # L2 weight decay
-
-N_LEARN_UPDATES = 10    # number of learning updates
+LR_ACTOR = 1e-4         # learning rate of the actor 
+LR_CRITIC = 3e-4        # learning rate of the critic
+WEIGHT_DECAY = 0.0001     # L2 weight decay
 N_TIME_STEPS = 20       # every n time step do update
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
     """Interacts with and learns from the environment."""
-    memory = None
-    actor_local = None
-    actor_target = None
-    actor_optimizer = None
-
-    critic_local = None
-    critic_target = None
-    critic_optimizer = None
-
     def __init__(self, state_size, action_size, random_seed):
         """Initialize an Agent object.
         Params
@@ -46,47 +34,35 @@ class Agent():
         self.seed = random.seed(random_seed)
 
         # initialize Class level Actor Network
-        if Agent.actor_local is None:
-            Agent.actor_local = Actor(state_size, action_size, random_seed).to(device)
-        if Agent.actor_target is None:
-            Agent.actor_target = Actor(state_size, action_size, random_seed).to(device)
-        if Agent.actor_optimizer is None:
-            Agent.actor_optimizer = optim.Adam(Agent.actor_local.parameters(), lr=LR_ACTOR)
-        self.actor_local = Agent.actor_local
-        self.actor_target = Agent.actor_target
-        self.actor_optimizer = Agent.actor_optimizer
+        self.actor_local = Actor(state_size, action_size, random_seed).to(device)
+        self.actor_target = Actor(state_size, action_size, random_seed).to(device)
+        self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=LR_ACTOR)
 
         # Initilise Class levell Critic Network
-        if Agent.critic_local is None:
-            Agent.critic_local = Critic(state_size, action_size, random_seed).to(device)
-        if Agent.critic_target is None:
-            Agent.critic_target = Critic(state_size, action_size, random_seed).to(device)
-        if Agent.critic_optimizer is None:
-            Agent.critic_optimizer = optim.Adam(Agent.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
-        self.critic_local = Agent.critic_local
-        self.critic_target = Agent.critic_target
-        self.critic_optimizer = Agent.critic_optimizer
-
+        self.critic_local = Critic(state_size, action_size, random_seed).to(device)
+        self.critic_target = Critic(state_size, action_size, random_seed).to(device)
+        self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
+        
+        
         # Noise process
         self.noise = OUNoise(action_size, random_seed)
 
         # Replay memory - only intitialise once per class
-        if Agent.memory is None:
-            Agent.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
+        self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
             
     def step(self, time_step, state, action, reward, next_state, done):
         """Save experience in replay memory, and use random sample from buffer to learn."""
         # Save experience / reward
-        Agent.memory.add(state, action, reward, next_state, done)
+        self.memory.add(state, action, reward, next_state, done)
 
         # only learn every n_time_steps
         if time_step % N_TIME_STEPS != 0:
             return
 
         # Learn, if enough samples are available in memory
-        if len(Agent.memory) > BATCH_SIZE:
-            for i in range(N_LEARN_UPDATES):
-                experiences = Agent.memory.sample()
+        if len(self.memory) > BATCH_SIZE:
+            for i in range(10):
+                experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
 
     def act(self, state, add_noise=True):
