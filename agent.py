@@ -8,18 +8,18 @@ import torch.nn.functional as F
 from collections import namedtuple, deque
 from model import Actor, Critic
 
-BUFFER_SIZE = int(1e4)  # replay buffer size
-BATCH_SIZE = 1024        # minibatch size
+BUFFER_SIZE = int(1e6)  # replay buffer size
+BATCH_SIZE = 256         # minibatch size
 GAMMA = 0.99            # discount factor
 TAU = 1e-3              # for soft update of target parameters
-LR_ACTOR = 1e-4         # learning rate of the actor 
-LR_CRITIC = 3e-4        # learning rate of the critic
-WEIGHT_DECAY = 0.0001     # L2 weight decay
-N_TIME_STEPS = 20       # every n time step do update
+LR_ACTOR = 1e-3         # learning rate of the actor
+LR_CRITIC = 1e-3        # learning rate of the critic
+WEIGHT_DECAY = 0.0      # L2 weight decay
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Agent():
+
     """Interacts with and learns from the environment."""
     def __init__(self, state_size, action_size, random_seed):
         """Initialize an Agent object.
@@ -54,10 +54,6 @@ class Agent():
         """Save experience in replay memory, and use random sample from buffer to learn."""
         # Save experience / reward
         self.memory.add(state, action, reward, next_state, done)
-
-        # only learn every n_time_steps
-        if time_step % N_TIME_STEPS != 0:
-            return
 
         # Learn, if enough samples are available in memory
         if len(self.memory) > BATCH_SIZE:
