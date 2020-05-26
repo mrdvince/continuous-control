@@ -1,5 +1,6 @@
 import copy
 import torch
+import config
 import random
 import numpy as np
 import torch.optim as optim
@@ -8,14 +9,14 @@ import torch.nn.functional as F
 from collections import namedtuple, deque
 from model import Actor, Critic
 
-BUFFER_SIZE = int(1e6)  # replay buffer size
-BATCH_SIZE = 128         # minibatch size
-GAMMA = 0.99            # discount factor
-TAU = 1e-3              # for soft update of target parameters
-LR_ACTOR = 1e-4         # learning rate of the actor
-LR_CRITIC = 1e-3        # learning rate of the critic
-WEIGHT_DECAY = 0.0      # L2 weight decay
-N_TIME_STEPS = 20       # every n time step do update
+BUFFER_SIZE = config.BUFFER_SIZE  # replay buffer size
+BATCH_SIZE = config.BATCH_SIZE         # minibatch size
+GAMMA = config.GAMMA            # discount factor
+TAU = config.TAU              # for soft update of target parameters
+LR_ACTOR = config.LR_ACTOR         # learning rate of the actor
+LR_CRITIC = config.LR_CRITIC        # learning rate of the critic
+WEIGHT_DECAY = config.WEIGHT_DECAY      # L2 weight decay
+N_TIME_STEPS = config.N_TIME_STEPS       # every n time step do update
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -24,40 +25,38 @@ class Agent():
 
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, random_seed):
+    def __init__(self, state_size, action_size):
         """Initialize an Agent object.
         Params
         ======
             state_size (int): dimension of each state
             action_size (int): dimension of each action
-            random_seed (int): random seed
         """
         self.state_size = state_size
         self.action_size = action_size
-        self.seed = random.seed(random_seed)
 
         # initialize Class level Actor Network
         self.actor_local = Actor(
-            state_size, action_size, random_seed).to(device)
+            state_size, action_size).to(device)
         self.actor_target = Actor(
-            state_size, action_size, random_seed).to(device)
+            state_size, action_size).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor_local.parameters(), lr=LR_ACTOR)
 
         # Initilise Class levell Critic Network
         self.critic_local = Critic(
-            state_size, action_size, random_seed).to(device)
+            state_size, action_size).to(device)
         self.critic_target = Critic(
-            state_size, action_size, random_seed).to(device)
+            state_size, action_size).to(device)
         self.critic_optimizer = optim.Adam(
             self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
 
         # Noise process
-        self.noise = OUNoise(action_size, random_seed)
+        self.noise = OUNoise(action_size)
 
         # Replay memory - only intitialise once per class
         self.memory = ReplayBuffer(
-            action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
+            action_size, BUFFER_SIZE, BATCH_SIZE)
 
     def step(self, time_step, state, action, reward, next_state, done):
         """Save experience in replay memory, and use random sample from buffer to learn."""
@@ -146,12 +145,11 @@ class Agent():
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.2):
+    def __init__(self, size, mu=0., theta=0.15, sigma=0.2):
         """Initialize parameters and noise process."""
         self.mu = mu * np.ones(size)
         self.theta = theta
         self.sigma = sigma
-        self.seed = random.seed(seed)
         self.reset()
         self.size = size
 
@@ -172,7 +170,7 @@ class OUNoise:
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
-    def __init__(self, action_size, buffer_size, batch_size, seed):
+    def __init__(self, action_size, buffer_size, batch_size):
         """Initialize a ReplayBuffer object.
         Params
         ======
@@ -184,7 +182,6 @@ class ReplayBuffer:
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", field_names=[
                                      "state", "action", "reward", "next_state", "done"])
-        self.seed = random.seed(seed)
 
     def add(self, state, action, reward, next_state, done):
         """Add a new experience to memory."""
